@@ -83,13 +83,12 @@ public:
     
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words) : stop_words_(MakeUniqueNonEmptyStrings(stop_words)) {
-        for (const auto& word : stop_words) {
-            if (!IsValidWord(word)) throw invalid_argument("Unacceptable symbols"s);
+        if (any_of(stop_words.begin(), stop_words.end(),[](const auto& w){return !IsValidWord(w);})){
+            throw invalid_argument("Unacceptable symbols"s);
         }
     }
 
     explicit SearchServer(const string& stop_words_text) : SearchServer(SplitIntoWords(stop_words_text)) {
-        if (!IsValidWord(stop_words_text)) throw invalid_argument("Unacceptable symbols"s);
     }
     
     void SetStopWords(const string& text) {
@@ -101,18 +100,19 @@ public:
     void AddDocument(int document_id, const string& document, DocumentStatus status, const vector<int>& ratings) {
         check_id_document(document_id);
         if (document.empty())throw invalid_argument("The document is empty"s);
+        if (document[document.size()-1] == '-') throw invalid_argument("Unacceptable symbols"s);
         if (!IsValidWord(document)) throw invalid_argument("Unacceptable symbols"s);
 
         const vector<string> words = SplitIntoWordsNoStop(document);
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
-            if (word[0] == '-' || word.empty() || word[word.size() - 1] == '-') {
+            if (word[0] == '-' || word.empty()) {
                 throw invalid_argument("Unacceptable symbols"s);
             }
             word_to_document_freqs_[word][document_id] += inv_word_count;
         }
         documents_.emplace(document_id, DocumentData{ ComputeAverageRating(ratings), status });
-        Ndoc_id_[added_docs_] = document_id;
+        ndoc_id_[added_docs_] = document_id;
         added_docs_++;
     }
 
@@ -122,15 +122,6 @@ public:
         const Query query = ParseQuery(raw_query);
         vector<Document> matched_documents = FindAllDocuments(query, document_predicate);
 
-        for (auto i : query.minus_words)
-        {
-            if (!IsValidWord(i)) throw invalid_argument("Unacceptable symbols"s);
-            if (i[0] == '-' || i.empty() || i[i.size() - 1] == '-') throw invalid_argument("Unacceptable symbols"s);
-        }
-        for (auto i : query.plus_words) {
-            if (!IsValidWord(i)) throw invalid_argument("Unacceptable symbols"s);
-            if (i[0] == '-' || i.empty() || i[i.size() - 1] == '-') throw invalid_argument("Unacceptable symbols"s);
-        }
         sort(matched_documents.begin(), matched_documents.end(),
             [](const Document& lhs, const Document& rhs)
             {
@@ -155,7 +146,6 @@ public:
     vector<Document> FindTopDocuments(const string& raw_query) const {
         return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
     }
-  
     int GetDocumentCount() const {
         return documents_.size();
     }
@@ -164,17 +154,14 @@ public:
         if (index < 0 || index > added_docs_)
             throw out_of_range("id goes out of range"s);
         else
-            return Ndoc_id_.at(index);
+            return ndoc_id_.at(index);
     }
 
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query,
                                                         int document_id) const {
         
-        if (raw_query.empty()) throw invalid_argument("The raw is empty"s);
-        check_char_in_word(raw_query);
-        const Query query = check_minus_in_word(raw_query, ParseQuery(raw_query));
+        const Query query =  ParseQuery(raw_query);
         vector<string> matched_words;
-      
         for (const string& word : query.plus_words) {
             if (word_to_document_freqs_.count(word) == 0) {
                 continue;
@@ -205,7 +192,7 @@ private:
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, DocumentData> documents_;
     int added_docs_ = 0;
-    map<int, int> Ndoc_id_;
+    map<int, int> ndoc_id_;
 
     bool IsStopWord(const string& word) const {
         return stop_words_.count(word) > 0;
@@ -220,15 +207,8 @@ private:
     void check_id_document(const int document_id)const {
         if (document_id < 0) throw invalid_argument("id do not be negative"s);
 
-        for (auto [added_doc, id] : Ndoc_id_) {
+        for (auto [added_doc, id] : ndoc_id_) {
             if (id == document_id)throw invalid_argument("Error: ID documents is matches"s);
-        }
-    }
-
-    void check_char_in_word(const string& text)const {
-        if (IsValidWord(text) == false)
-        {
-            throw invalid_argument("Unacceptable symbols"s);
         }
     }
 
@@ -261,11 +241,16 @@ private:
 
     QueryWord ParseQueryWord(string text) const {
         bool is_minus = false;
-        // Word shouldn't be empty
+        
+        if (text.empty()) throw invalid_argument("text is empty");
+        
+        if (!IsValidWord(text)) throw invalid_argument("Unacceptable symbols"s);
+
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
         }
+        if (text[0] == '-') throw invalid_argument("Unacceptable - symbols"s); 
         return {text, is_minus, IsStopWord(text)};
     }
 
@@ -276,6 +261,7 @@ private:
 
     Query ParseQuery(const string& text) const {
         Query query;
+        if (text[text.size()-1]=='-') throw invalid_argument("Unacceptable symbols"s); 
         for (const string& word : SplitIntoWords(text)) {
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop) {
@@ -285,28 +271,6 @@ private:
                     query.plus_words.insert(query_word.data);
                 }
             }
-        }
-        return query;
-    }
-
-    Query check_minus_in_word(const string& text, const Query& query_in) const {
-        Query query = query_in;
-        if (text.empty())throw invalid_argument("The document is empty"s);
-
-        for (auto i : query.minus_words)
-        {
-            if (!IsValidWord(i))
-                throw invalid_argument("Unacceptable symbols"s);
-
-            if (i[0] == '-' || i.empty() || i[i.size() - 1] == '-')
-                throw invalid_argument("invalid character input -"s);
-        }
-        for (auto i : query.plus_words)
-        {
-            if (!IsValidWord(i))
-                throw invalid_argument("Unacceptable symbols"s);
-            if (i[0] == '-' || i.empty() || i[i.size() - 1] == '-')
-                throw invalid_argument("invalid character input -"s);
         }
         return query;
     }
@@ -362,6 +326,13 @@ void PrintDocument(const Document& document) {
          << "rating = "s << document.rating << " }"s << endl;
 }
 int main() {
-     SearchServer search_server("и в на"s);
-    
+     SearchServer search_server("и в на to"s);
+    search_server.AddDocument(0, "Ivan-chai is so- tasty"s, DocumentStatus::ACTUAL, {1, 2, 0});
+    search_server.AddDocument(1, "Dog eat dogs"s, DocumentStatus::ACTUAL, {1, 2, 4});
+    //search_server.FindTopDocuments(""s);
+    const auto documents = search_server.FindTopDocuments("Dog"s); {
+        for (const Document& document : documents) {
+            PrintDocument(document);
+        }
+    }
 } 
