@@ -241,16 +241,17 @@ private:
 
     QueryWord ParseQueryWord(string text) const {
         bool is_minus = false;
-        
-        if (text.empty()) throw invalid_argument("text is empty");
-        
+       
         if (!IsValidWord(text)) throw invalid_argument("Unacceptable symbols"s);
 
         if (text[0] == '-') {
             is_minus = true;
             text = text.substr(1);
         }
+        
+        if (text.empty()) throw invalid_argument("text is empty");
         if (text[0] == '-') throw invalid_argument("Unacceptable - symbols"s); 
+        
         return {text, is_minus, IsStopWord(text)};
     }
 
@@ -261,7 +262,6 @@ private:
 
     Query ParseQuery(const string& text) const {
         Query query;
-        if (text[text.size()-1]=='-') throw invalid_argument("Unacceptable symbols"s); 
         for (const string& word : SplitIntoWords(text)) {
             const QueryWord query_word = ParseQueryWord(word);
             if (!query_word.is_stop) {
@@ -327,10 +327,9 @@ void PrintDocument(const Document& document) {
 }
 int main() {
      SearchServer search_server("и в на to"s);
-    search_server.AddDocument(0, "Ivan-chai is so- tasty"s, DocumentStatus::ACTUAL, {1, 2, 0});
+    search_server.AddDocument(0, "Ivan-chai is to- tasty"s, DocumentStatus::ACTUAL, {1, 2, 0});
     search_server.AddDocument(1, "Dog eat dogs"s, DocumentStatus::ACTUAL, {1, 2, 4});
-    //search_server.FindTopDocuments(""s);
-    const auto documents = search_server.FindTopDocuments("Dog"s); {
+    const auto documents = search_server.FindTopDocuments("tasty"s); {
         for (const Document& document : documents) {
             PrintDocument(document);
         }
