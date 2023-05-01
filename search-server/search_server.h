@@ -14,6 +14,9 @@ const int MAX_RESULT_DOCUMENT_COUNT = 5;
 
 class SearchServer {
 public:
+    
+    SearchServer() = default;
+    
     template <typename StringContainer>
     explicit SearchServer(const StringContainer& stop_words);
     
@@ -33,10 +36,23 @@ public:
     int GetDocumentCount() const;
     
     int GetDocumentId(int index) const;
+    
+    auto begin() const{
+        return document_ids_.begin();
+    }
+    
+    auto end() const{
+        return document_ids_.end();
+    }
  
     tuple<vector<string>, DocumentStatus> MatchDocument(const string& raw_query,
                                                         int document_id) const;
                                                                                 
+   const map<string, double>& GetWordFrequencies(int document_id) const;
+
+   void RemoveDocument(int document_id);
+ 
+    
 private:
     struct DocumentData {
         int rating;
@@ -45,6 +61,7 @@ private:
     
     const set<string> stop_words_;
     map<string, map<int, double>> word_to_document_freqs_;
+    map<int, map<string, double>> word_freqs_by_id_;
     map<int, DocumentData> documents_;
     vector<int> document_ids_;
     

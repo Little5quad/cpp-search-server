@@ -13,6 +13,7 @@ void SearchServer::AddDocument(int document_id, const string& document, Document
         const double inv_word_count = 1.0 / words.size();
         for (const string& word : words) {
             word_to_document_freqs_[word][document_id] += inv_word_count;
+            word_freqs_by_id_[document_id][word] += inv_word_count;
         }
         documents_.emplace(document_id, DocumentData{ComputeAverageRating(ratings), status});
         document_ids_.push_back(document_id);
@@ -59,6 +60,20 @@ vector<Document> SearchServer::FindTopDocuments(const string& raw_query, Documen
         }
         return {matched_words, documents_.at(document_id).status};
     }
+
+    const map<string, double>& SearchServer::GetWordFrequencies(int document_id) const{
+        return word_freqs_by_id_.at(document_id);
+    }
+ 
+    void SearchServer::RemoveDocument(int document_id){
+        for (auto[word, idfs] : word_to_document_freqs_){
+            idfs.erase(document_id);
+        }
+        word_freqs_by_id_.erase(document_id);
+        documents_.erase(document_id);
+        document_ids_.erase(lower_bound(document_ids_.begin(), document_ids_.end(), document_id));
+    }
+ 
 
     bool SearchServer::IsStopWord(const string& word) const {
             return stop_words_.count(word) > 0;

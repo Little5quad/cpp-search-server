@@ -23,3 +23,5 @@ struct Document {
 void PrintDocument(const Document& document);
 
 std::ostream& operator<<(std::ostream& out, const Document& document);
+
+std::ostream& operator<<(std::ostream& out, DocumentStatus ds);
