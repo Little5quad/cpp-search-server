@@ -35,7 +35,7 @@ public:
     
     int GetDocumentCount() const;
     
-    int GetDocumentId(int index) const;
+    //int GetDocumentId(int index) const;
     
     auto begin() const{
         return document_ids_.begin();
@@ -63,7 +63,7 @@ private:
     map<string, map<int, double>> word_to_document_freqs_;
     map<int, map<string, double>> word_freqs_by_id_;
     map<int, DocumentData> documents_;
-    vector<int> document_ids_;
+    set<int> document_ids_;
     
     bool IsStopWord(const string& word) const;
     
