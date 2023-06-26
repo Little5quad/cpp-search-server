@@ -247,9 +247,6 @@ template <typename ExecutionPolicy, typename DocumentPredicate>
                 query.plus_words.begin(),
                 query.plus_words.end(),
                 [&](std::string_view word){
-                    /*if (word_to_document_freqs_.count(word) == 0) {
-                    continue;
-                }*/
                     if (word_to_document_freqs_.count(word) != 0){
                     const double inverse_document_freq = ComputeWordInverseDocumentFreq(word);
                     for (const auto [document_id, term_freq] : word_to_document_freqs_.at(word)) {
@@ -263,9 +260,6 @@ template <typename ExecutionPolicy, typename DocumentPredicate>
                 query.minus_words.begin(),
                 query.minus_words.end(),
                 [&](std::string_view word) {
-                /*if (word_to_document_freqs_.count(word) == 0) {
-                    continue;
-                }*/
                     if (word_to_document_freqs_.count(word) != 0) {
                 for (const auto [document_id, _] : word_to_document_freqs_.at(word)) {
                     document_to_relevance.Erase(document_id);
