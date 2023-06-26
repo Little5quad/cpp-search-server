@@ -119,8 +119,6 @@ private:
         
     void VectorEraseDuplicate(const std::execution::parallel_policy, std::vector<std::string_view>& vec) const;
     
-    Query ParseQuery(string_view text) const;
-    
     double ComputeWordInverseDocumentFreq(string_view word) const;
  
     template <typename DocumentPredicate>
