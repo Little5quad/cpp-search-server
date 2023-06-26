@@ -42,29 +42,6 @@ vector<Document> SearchServer::FindTopDocuments(string_view raw_query, DocumentS
  
     tuple<vector<string_view>, DocumentStatus> SearchServer::MatchDocument(string_view raw_query,
                                                         int document_id) const {
-        /*
-        const auto query = ParseQuery(false, raw_query);
- 
-        vector<string_view> matched_words;
-        for (string_view word : query.plus_words) {
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            if (word_to_document_freqs_.at(word).count(document_id)) {
-                matched_words.push_back(word);
-            }
-        }
-        for (string_view word : query.minus_words) {
-            if (word_to_document_freqs_.count(word) == 0) {
-                continue;
-            }
-            if (word_to_document_freqs_.at(word).count(document_id)) {
-                matched_words.clear();
-                break;
-            }
-        }
-        return {matched_words, documents_.at(document_id).status};
-        */
         Query query = ParseQuery(false,raw_query);
 
         std::vector<std::string_view> plus_words_document;
