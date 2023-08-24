@@ -23,22 +23,44 @@ void SearchServer::AddDocument(int document_id, std::string_view document, Docum
         document_ids_.insert(document_id);
     }
 
-vector<Document> SearchServer::FindTopDocuments(string_view raw_query, DocumentStatus status) const {
-        return FindTopDocuments(
-            raw_query, [status](int document_id, DocumentStatus document_status, int rating) {
-                return document_status == status;
-            });
+    vector<Document> SearchServer::FindTopDocuments(string_view raw_query, DocumentStatus status) const { 
+        return FindTopDocuments( 
+            raw_query, [status](int document_id, DocumentStatus document_status, int rating) { 
+                return document_status == status; 
+            }); 
+    } 
+    
+    vector<Document> SearchServer::FindTopDocuments(const std::execution::sequenced_policy&, string_view raw_query, 
+                                      DocumentStatus status) const{
+        return FindTopDocuments( 
+                raw_query, [status](int document_id, DocumentStatus document_status, int rating) { 
+                    return document_status == status; 
+                }); 
+        
     }
- 
-    vector<Document> SearchServer::FindTopDocuments(string_view raw_query) const {
-        return FindTopDocuments(raw_query, DocumentStatus::ACTUAL);
+
+    vector<Document> SearchServer::FindTopDocuments(const std::execution::parallel_policy&, string_view raw_query, 
+                                      DocumentStatus status) const{
+        return FindTopDocuments(std::execution::par, raw_query, [status](int document_id, DocumentStatus document_status, int rating) { 
+                return document_status == status; 
+            }); 
     }
+  
+    vector<Document> SearchServer::FindTopDocuments(string_view raw_query) const { 
+        return FindTopDocuments(raw_query, DocumentStatus::ACTUAL); 
+    }
+
+    vector<Document> SearchServer::FindTopDocuments(const std::execution::sequenced_policy&, string_view raw_query) const{
+        return FindTopDocuments(raw_query, DocumentStatus::ACTUAL); 
+    }
+    
+    vector<Document> SearchServer::FindTopDocuments(const std::execution::parallel_policy&, string_view raw_query) const{
+        return FindTopDocuments(std::execution::par, raw_query, DocumentStatus::ACTUAL); 
+    }
+
     int SearchServer::GetDocumentCount() const {
         return documents_.size();
     }
-    /*int SearchServer::GetDocumentId(int index) const {
-        return document_ids_.at(index);
-    }*/
  
     tuple<vector<string_view>, DocumentStatus> SearchServer::MatchDocument(string_view raw_query,
                                                         int document_id) const {
@@ -168,10 +190,7 @@ vector<Document> SearchServer::FindTopDocuments(string_view raw_query, DocumentS
         return words;
     }
     int SearchServer::ComputeAverageRating(const vector<int>& ratings) {
-        int rating_sum = 0;
-        for (const int rating : ratings) {
-            rating_sum += rating;
-        }
+        int rating_sum = std::accumulate(ratings.begin(), ratings.end(), 0);
         return rating_sum / static_cast<int>(ratings.size());
     }
 
@@ -179,8 +198,6 @@ vector<Document> SearchServer::FindTopDocuments(string_view raw_query, DocumentS
         if (text.empty()) {
             throw invalid_argument("Query word is empty"s);
         }
-        //string word = text;
-        //std::string_view word(text);
 
         bool is_minus = false;
         if (text[0] == '-') {
@@ -193,7 +210,7 @@ vector<Document> SearchServer::FindTopDocuments(string_view raw_query, DocumentS
         return {text, is_minus, IsStopWord(text)};
     }
 
-   SearchServer::Query SearchServer::ParseQuery(const bool flag, string_view text) const {
+   SearchServer::Query SearchServer::ParseQuery(const bool execute_policy, string_view text) const {
         Query result;
         for (const string_view word : SplitIntoWords(text)) {
             const auto query_word = ParseQueryWord(word);
@@ -205,7 +222,7 @@ vector<Document> SearchServer::FindTopDocuments(string_view raw_query, DocumentS
                 }
             }
         }
-        if (!flag) {
+        if (!execute_policy) {
             VectorEraseDuplicate(std::execution::seq, result.minus_words);
             VectorEraseDuplicate(std::execution::seq, result.plus_words);
         }
