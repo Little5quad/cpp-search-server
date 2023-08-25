@@ -35,6 +35,8 @@ public:
     }
     
     void Erase(Key key){
+        std::mutex mut;
+        std::lock_guard g(mut);
         size_t bucket_index = static_cast<size_t>(key) % buckets_.size();
         buckets_[bucket_index].map.erase(key);
     }
